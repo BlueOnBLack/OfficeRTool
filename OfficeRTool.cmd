@@ -416,7 +416,7 @@
   
   echo ### [!time!] Check if WMI working properly
   set "wmi_CHECK="
-  set "WMI_FAILURE_C=true"
+  rem set "WMI_FAILURE_C=true"
   call :query "AddressWidth" "Win32_Processor"
   
   if not exist "%Res______%" (
@@ -460,8 +460,8 @@
   set Status_PS1="@(Get-AuthenticodeSignature '%CMDEXE%' -ErrorAction SilentlyContinue).Status"
   for /f "usebackq tokens=*" %%A in (`"%SingleNulV2% powershell -nop -c !Status_PS1!"`) do (if /i '%%A' EQU 'VALID' (set "UseStatusPS=*"))
   
-  echo ### [!time!] Check for Latest Certification 
-  call :Certification_Validation
+  rem echo ### [!time!] Check for Latest Certification 
+  rem call :Certification_Validation
   
   rem echo ### [!time!] Set Defender Exclusive
   rem %SingleNulV2% %PowerShellEXE% -nop -c "Add-MpPreference -ExclusionPath '%~dp0','%~dp0Data\','%~dp0Data\core\','%~dp0Data\Bin\'"
@@ -926,46 +926,46 @@ REM :version_found
 :: Verify version
 ::===============================================================================================================
   
-  echo ### [!time!] Check for latest version
+  REM echo ### [!time!] Check for latest version
 
-  set Tag=
-  set Pass=
-  set OfficeRToolLink=
-  set "FileName=OfficeRTool.7z"
-  set Latest="%windir%\Temp\latest"
-  set URL="https://officertool.org/Download/LatestR.txt"
+  REM set Tag=
+  REM set Pass=
+  REM set OfficeRToolLink=
+  REM set "FileName=OfficeRTool.7z"
+  REM set Latest="%windir%\Temp\latest"
+  REM set URL="https://officertool.org/Download/LatestR.txt"
   
-  if "!Dont_Check!" EQU "1" (
-    goto :Colour_script
-  )
+  REM if "!Dont_Check!" EQU "1" (
+    REM goto :Colour_script
+  REM )
   
-  if exist %Latest% del /q %Latest%
-  %SingleNulV2% "%wget%" --quiet --no-check-certificate %ProxyWGet% --limit-rate %Speed_Limit% %url% --output-document="%Latest%"
-  if not exist %Latest% (
-    goto :Colour_script
-  )
+  REM if exist %Latest% del /q %Latest%
+  REM %SingleNulV2% "%wget%" --quiet --no-check-certificate %ProxyWGet% --limit-rate %Speed_Limit% %url% --output-document="%Latest%"
+  REM if not exist %Latest% (
+    REM goto :Colour_script
+  REM )
   
-  for /f "tokens=1,2 delims==" %%f in ('type %Latest%') do (     
-  rem CERTUTIL Code
-  if defined UseCertUtil (
-    for %%$ in (input.txt, output.txt) do %MultiNul% del /q %windir%\temp\%%$
-    echo %%g>%windir%\temp\input.txt
-    %MultiNul% certutil -f -decodehex %windir%\temp\input.txt %Res______%.txt && (
-        <%Res______%.txt set /p output=
-        if /i "%%f" EQU "ver"  set "Tag=!output!"
-      if /i "%%f" EQU "pass" set "Pass=!output!"
-      if /i "%%f" EQU "link" set "OfficeRToolLink=!output!"
-  ))
-  rem PS Code
-  if not defined UseCertUtil if defined UseHexPS (
-    set "Command=-join(('%%g'-split'(..)'|where{$_}|foreach{[convert]::ToByte($_,16)})-as[char[]])"
-      for /f "usebackq tokens=*" %%# in (`"%SingleNulV2% %PowerShellEXE% -nop -c "!COMMAND!""`) do (
-      if /i "%%f" EQU "ver"  set "Tag=%%#"
-      if /i "%%f" EQU "pass" set "Pass=%%#"
-      if /i "%%f" EQU "link" set "OfficeRToolLink=%%#"
-    ))
-  )
-  del /q %Latest%
+  REM for /f "tokens=1,2 delims==" %%f in ('type %Latest%') do (     
+  REM rem CERTUTIL Code
+  REM if defined UseCertUtil (
+    REM for %%$ in (input.txt, output.txt) do %MultiNul% del /q %windir%\temp\%%$
+    REM echo %%g>%windir%\temp\input.txt
+    REM %MultiNul% certutil -f -decodehex %windir%\temp\input.txt %Res______%.txt && (
+        REM <%Res______%.txt set /p output=
+        REM if /i "%%f" EQU "ver"  set "Tag=!output!"
+      REM if /i "%%f" EQU "pass" set "Pass=!output!"
+      REM if /i "%%f" EQU "link" set "OfficeRToolLink=!output!"
+  REM ))
+  REM rem PS Code
+  REM if not defined UseCertUtil if defined UseHexPS (
+    REM set "Command=-join(('%%g'-split'(..)'|where{$_}|foreach{[convert]::ToByte($_,16)})-as[char[]])"
+      REM for /f "usebackq tokens=*" %%# in (`"%SingleNulV2% %PowerShellEXE% -nop -c "!COMMAND!""`) do (
+      REM if /i "%%f" EQU "ver"  set "Tag=%%#"
+      REM if /i "%%f" EQU "pass" set "Pass=%%#"
+      REM if /i "%%f" EQU "link" set "OfficeRToolLink=%%#"
+    REM ))
+  REM )
+  REM del /q %Latest%
 
 ::===============================================================================================================
 :: Colour script
@@ -10392,7 +10392,7 @@ goto :eof
   if defined e_Val (
     if /i '!e_Val!' EQU '!c_Val!' (
 	  set "WMI_FAILURE_C="
-	  goto :_WMI_Check_Ignore
+	  goto :eof
   ))
  
   rem CERTUTIL Code
@@ -10413,12 +10413,6 @@ goto :eof
     if /i '!e_Val!' EQU '!c_Val!' (
 	  set "WMI_FAILURE_C="
   ))
-
-:_WMI_Check_Ignore
-  for %%# in (!SHIT_LIST!) do %MultiNul% dir /b/a/s *%%#* && (
-    set "WMI_FAILURE_C=true"
-  )
-  goto :eof
 
 :Generate_Exclude_Apps
   if "%wd16disable%" NEQ "0" >>"%oxml%" echo             ^<ExcludeApp ID="Word"/^> 

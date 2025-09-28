@@ -1,0 +1,16 @@
+function Verify_Sub_Process {
+	try {
+		$proc = gcim Win32_Process;
+		$filter = @($proc|where Name -eq 'windowsterminal.exe').ParentProcessID;
+		foreach ($id in $filter) { 
+			if (@($proc | where {$_.ProcessId -eq $id -And $_.ProcessName -eq 'svchost.exe'}).Count -ge 1) {
+				return 'True';
+			}
+		}
+		return 'False';
+	} catch {
+		return 'Null';
+	}
+}
+
+verify_Sub_Process;

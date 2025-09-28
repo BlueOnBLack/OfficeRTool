@@ -1,0 +1,201 @@
+:: parent process check.
+:: it's option in all version 10X 11X
+:: first we must to do registry / handle check
+
+:: here some explains:
+:: set terminal as default host ...
+:: open terminal windows, write start cmd, press enter
+:: new terminal will open, open via command line
+:: the parent process will be wt.exe file
+:: but it have nothing in connection
+
+:: SVCHOST   - WT              0000000  this is the main windows
+:: EXPOLORER - WT - CMD - CMD  0000000  just a dummy parent f* process
+
+:: Edit 20/06/2023
+:: not work under v17 v18+ Release
+:: it open 1 process under explorer.exe
+:: with multi sub process .......
+:: so it will be disabled from now on
+
+call :Terminal_Parent_Check
+
+~~~~~~~~~~~~~~~~~~~~~~
+  
+:Terminal_Parent_Check
+
+:: dont check twice
+if defined TerminalFound exit /b
+
+:: if you run CMD script, from terminal window
+:: the parent process will be windowsterminal.exe, not expolorer.exe
+
+if not defined PID exit /b
+if defined NT_X if !NT_X! LSS 10 exit /b
+
+REM set /a "count=0"
+REM set COMMAND="@(gcim win32_process | where Name -Match 'WindowsTerminal.exe').Count"
+REM for /f "usebackq tokens=*" %%# in (`"%SingleNulV2% %PowerShellEXE% -nop -c !COMMAND!"`) do set /a "count=%%#"
+REM if defined count if !count! LSS 1 exit /b
+
+:: VBS alternative
+set /a "count=0"
+call :Query "Name,ParentProcessId" "Win32_Process" "Name Like '%%%%WindowsTerminal.exe%%%%'"
+if exist %Res______% for /f "tokens=1,2,3 delims=," %%a in ('type "%Res______%"') do set /a "count+=1"
+if defined count if !count! LSS 1 exit /b
+
+echo ### [!time!] Check for Terminal app [Parent Process check]
+
+:: plan A
+
+for %%# in (Proc_ID,Proc_Name,Proc_Handle,ParentProcessId) do set "%%#="
+
+REM set COMMAND="@(Get-WMIObject -Classname Win32_Process | Where ProcessId -MATCH !PID!).ParentProcessId"
+REM for /f "usebackq tokens=*" %%# in (`"%SingleNulV2% %PowerShellEXE% -nop -c !COMMAND!"`) do set "ParentProcessId=%%#"
+
+:: VBS alternative
+call :Query "Name,ParentProcessId" "Win32_Process" "ProcessId=!PID!"
+if exist %Res______% for /f "tokens=3 delims=," %%$ in ('type "%Res______%"') do set "ParentProcessId=%%$"
+
+:: Case :Not OK, Exit
+if not defined ParentProcessId goto :Plan_B
+
+set COMMAND="Get-process | Where Id -EQ !ParentProcessId! | select Name,ID,MainWindowHandle |Format-List"
+for /f "usebackq tokens=1,2 delims=: " %%a in (`"%SingleNulV2% %PowerShellEXE% -nop -c !COMMAND!"`) do (
+  if /i '%%a' EQU 'ID'               set "Proc_ID=%%b"
+  if /i '%%a' EQU 'Name'             set "Proc_Name=%%b"
+  if /i '%%a' EQU 'MainWindowHandle' set "Proc_Handle=%%b"
+)
+
+:: Case :Not OK, Exit
+if not defined Proc_ID     goto :Plan_B
+if not defined Proc_Name   goto :Plan_B
+if not defined Proc_Handle goto :Plan_B
+
+:: Case :OK, Exit
+if /i "!Proc_Name!" EQU "WindowsTerminal" ((set TerminalFound=*) & goto :eof)
+
+:: run from terminal via powershell console
+:: terminal - powershell - ...
+
+if /i "!Proc_Name!" NEQ "powershell" if /i "!Proc_Name!" NEQ "cmd" (
+  for %%# in (Proc_ID,Proc_Name,Proc_Handle,ParentProcessId) do set "%%#="
+  exit /b
+)
+
+set "PP_SRC_ID=!ParentProcessId!"
+for %%# in (Proc_ID,Proc_Name,Proc_Handle,ParentProcessId) do set "%%#="
+
+REM set COMMAND="@(Get-WMIObject -Classname Win32_Process | Where ProcessId -MATCH !PP_SRC_ID!).ParentProcessId"
+REM for /f "usebackq tokens=*" %%# in (`"%SingleNulV2% %PowerShellEXE% -nop -c !COMMAND!"`) do set "ParentProcessId=%%#"
+
+:: VBS alternative
+call :Query "Name,ParentProcessId" "Win32_Process" "ProcessId=!PP_SRC_ID!"
+if exist %Res______% for /f "tokens=3 delims=," %%$ in ('type "%Res______%"') do set "ParentProcessId=%%$"
+
+:: Case :Not OK, Exit
+if not defined ParentProcessId goto :Plan_B
+
+set COMMAND="Get-process | Where Id -EQ !ParentProcessId! | select Name,ID,MainWindowHandle |Format-List"
+for /f "usebackq tokens=1,2 delims=: " %%a in (`"%SingleNulV2% %PowerShellEXE% -nop -c !COMMAND!"`) do (
+  if /i '%%a' EQU 'ID'               set "Proc_ID=%%b"
+  if /i '%%a' EQU 'Name'             set "Proc_Name=%%b"
+  if /i '%%a' EQU 'MainWindowHandle' set "Proc_Handle=%%b"
+)
+
+:: Case :Not OK, Exit
+if not defined Proc_ID     goto :Plan_B
+if not defined Proc_Name   goto :Plan_B
+if not defined Proc_Handle goto :Plan_B
+
+rem for debug purpose
+rem keep for later
+
+REM cls
+REM echo:
+REM echo Main PID     : '!ParentProcessId!' || 1 pos
+REM echo Sub PID      : '!PP_SRC_ID!'       || 2 pos
+REM echo Sub Sub PID  : '!PID!'             || 3 pos
+REM echo:
+REM echo Proc ID      : !Proc_ID!
+REM echo Proc Name    : !Proc_Name!
+REM echo Proc Handle  : !Proc_Handle!
+REM echo:
+REM pause
+REM pause
+
+if /i "!Proc_Name!" EQU "WindowsTerminal" ((set TerminalFound=*) & goto :eof)
+for %%# in (Proc_ID,Proc_Name,Proc_Handle,ParentProcessId) do set "%%#="
+exit /b
+
+:: plan B
+:Plan_B
+
+for %%# in (Proc_ID,Proc_Name,Proc_Handle,ParentProcessId) do set "%%#="
+
+%MultiNul% del /q %Res______%
+%SingleNulV2% wmic path Win32_Process where (ProcessId=!PID!) get Name,ParentProcessId /format:list > %Res______%
+if exist %Res______% for /f "tokens=1,2 delims==" %%a in ('"type %Res______%"') do (
+  if /i '%%a' EQU 'DUMMY'           set "XXX=%%b"
+  if /i '%%a' EQU 'ParentProcessId' set "ParentProcessId=%%b"
+)
+if not defined ParentProcessId exit /b
+
+%MultiNul% del /q %Res______%
+%SingleNulV2% wmic path Win32_Process where (ProcessId=!ParentProcessId!) get Name,ProcessId /format:list > %Res______%
+if exist %Res______% for /f "tokens=1,2 delims==" %%a in ('"type %Res______%"') do (
+  if /i '%%a' EQU 'ProcessId' set "Proc_ID=%%b"
+  if /i '%%a' EQU 'Name'      set "Proc_Name=%%b"
+)
+if not defined Proc_ID   exit /b
+if not defined Proc_Name exit /b
+
+:: Case :OK, Exit
+if /i "!Proc_Name!" EQU "WindowsTerminal.exe" ((set TerminalFound=*) & exit /b)
+:: Case :Not OK, Exit
+if /i "!Proc_Name!" NEQ "powershell.exe" if /i "!Proc_Name!" NEQ "cmd.exe" ((set "Proc_ID=") & exit /b )
+
+:: run from terminal via powershell console
+:: terminal - powershell - ...
+
+set "PP_SRC_ID=!ParentProcessId!"
+for %%# in (Proc_ID,Proc_Name,Proc_Handle,ParentProcessId) do set "%%#="
+
+%MultiNul% del /q %Res______%
+%SingleNulV2% wmic path Win32_Process where (ProcessId=!PP_SRC_ID!) get Name,ParentProcessId /format:list > %Res______%
+if exist %Res______% for /f "tokens=1,2 delims==" %%a in ('"type %Res______%"') do (
+  if /i '%%a' EQU 'DUMMY'           set "XXX=%%b"
+  if /i '%%a' EQU 'ParentProcessId' set "ParentProcessId=%%b"
+)
+if not defined ParentProcessId exit /b
+
+%MultiNul% del /q %Res______%
+%SingleNulV2% wmic path Win32_Process where (ProcessId=!ParentProcessId!) get Name,ProcessId /format:list > %Res______%
+if exist %Res______% for /f "tokens=1,2 delims==" %%a in ('"type %Res______%"') do (
+  if /i '%%a' EQU 'ProcessId' set "Proc_ID=%%b"
+  if /i '%%a' EQU 'Name'      set "Proc_Name=%%b"
+)
+if not defined Proc_ID   exit /b
+if not defined Proc_Name exit /b
+
+rem for debug purpose
+rem keep for later
+
+REM cls
+REM echo:
+REM echo Main PID     : '!ParentProcessId!' || 1 pos
+REM echo Sub PID      : '!PP_SRC_ID!'       || 2 pos
+REM echo Sub Sub PID  : '!PID!'             || 3 pos
+REM echo:
+REM echo Proc ID      : !Proc_ID!
+REM echo Proc Name    : !Proc_Name!
+REM echo Proc Handle  : !Proc_Handle!
+REM echo:
+REM pause
+REM pause
+
+if defined Proc_Name if /i "!Proc_Name!" EQU "WindowsTerminal.exe" ((set TerminalFound=*) & exit /b)
+
+:: Go home
+for %%# in (Proc_ID,Proc_Name,Proc_Handle,ParentProcessId) do set "%%#="
+goto :eof

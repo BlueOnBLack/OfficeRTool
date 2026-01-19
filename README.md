@@ -21,6 +21,12 @@
 - Includes VBS core files, activation scripts, and DLLs  
 
 ---
+## Updated Alternative
+
+OfficeRTool Plus by mustafa gotr
+https://forums.mydigitallife.net/threads/office-r-tool-version.89472
+
+---
 
 ## About
 
